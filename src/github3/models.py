@@ -27,7 +27,7 @@ class GitHubCore:
     _ratelimit_resource = "core"
     _refresh_to: t.Optional[t.Type["GitHubCore"]] = None
 
-    def __init__(self, json, session: session.GitHubSession):
+    def __init__(self, json, session: t.Union[session.GitHubSession, t.Type["GitHubCore"]]):
         """Initialize our basic object.
 
         Pretty much every object will pass in decoded JSON and a Session.

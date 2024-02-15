@@ -25,6 +25,7 @@ from . import status
 from . import tag
 from . import topics
 from . import traffic
+from . import workflow
 from .. import checks
 from .. import decorators
 from .. import events
@@ -2886,6 +2887,83 @@ class _Repository(models.GitHubCore):
         if json and json.get("Last-Modified"):
             del json["Last-Modified"]
         return json
+
+    def workflows(self):
+        ...
+
+    def workflow(self, id: int):
+        ...
+    
+    def workflow_runs(
+            self,
+            count=-1,
+            actor=None,
+            branch=None,
+            event=None,
+            status=None,
+            created=None,
+            exclude_pull_requests=False,
+            check_suite_id=None,
+            head_sha=None,
+            workflow_id=None,
+        ):
+        """Iterate over the workflow runs in this repository.
+
+        :param int number:
+            (optional), number of runs to return. Default: -1 returns all
+            runs
+        :param bool protected:
+            (optional), True lists only protected branches.
+            Default: False
+        :param str etag:
+            (optional), ETag from a previous request to the same endpoint
+        :returns:
+            generator of workflow runs
+        :rtype:
+            :class:`~github3.repos.workflow.Run`
+        """
+
+        if workflow_id is not None:
+            url = self._build_url("actions", "workflows", workflow_id, "runs", base_url=self._api)
+        else:
+            url = self._build_url("actions", "runs", base_url=self._api)
+
+        params = {
+            "actor": actor,
+            "branch": branch,
+            "event": event,
+            "status": status,
+            "created": created,
+            "exclude_pull_requests": exclude_pull_requests,
+            "check_suite_id": check_suite_id,
+            "head_sha": head_sha
+        }
+        return self._iter(
+            int(count),
+            url,
+            workflow.Run,
+            params,
+            list_key="workflow_runs",
+        )
+
+    def workflow_run(self, id):
+        """Get the branch ``name`` of this repository.
+
+        :param str id:
+            (required), run id
+        :returns:
+            the run
+        :rtype:
+            :class:`~github3.repos.workflow.Run`
+        """
+ 
+        json = None
+        if id:
+            url = self._build_url("actions/runs", id, base_url=self._api)
+            json = self._json(
+                self._get(url), 200
+            )
+        return self._instance_or_null(workflow.Run, json)
 
 
 class Repository(_Repository):
