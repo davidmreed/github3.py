@@ -5,11 +5,16 @@ for a repository.
 """
 
 from collections import namedtuple
-from typing import NamedTuple
+from datetime import datetime
+from typing import List, NamedTuple
 from .. import models
 
 class Workflow(models.GitHubCore):
-    ...
+    def _repr(self):
+        return f"<Workflow [{self}]>"
+
+    def __str__(self):
+        return str(self.id)
 
     def disable(self):
         ...
@@ -20,16 +25,33 @@ class Workflow(models.GitHubCore):
     def dispatch(self):
         ...
 
-    def runs(self):
-        ...
+    def runs(
+        self,
+        actor=None,
+        branch=None,
+        event=None,
+        status=None,
+        per_page=None,
+        page=-1,
+        created=None,
+        exclude_pull_requests: bool=False,
+        check_suite_id=None,
+        head_sha=None
+    ):
+        return self.repository.workflow_runs(
+            workflow_id=self.workflow_id,
+            actor=actor, branch=branch,event=event,status=status,page=page,created=created,
+            exclude_pull_requests=exclude_pull_requests,check_suite_id=check_suite_id,
+            head_sha=head_sha
+        )
 
 class Run(models.GitHubCore):
 
     def _repr(self):
-        return f"<{self.class_name} [{self}]>"
+        return f"<Workflow Run [{self}]>"
 
     def __str__(self):
-        return self.id
+        return str(self.id)
 
     def workflow(self):
         return self.repository.workflow(self.workflow_id)
@@ -104,7 +126,6 @@ class Run(models.GitHubCore):
 #   },
 # }
 
-    @decorators.authentication_required
     def re_run(self):
         url = build_url(["repos", "owner", "repo", "actions", "runs", self.id, "rerun"])
         self._post(
@@ -150,13 +171,21 @@ class Run(models.GitHubCore):
             :class:`~github3.repos.workflow.Job`
         """
 
-        url = self.repo._build_url("actions", "runs", self.id, "jobs", base_url=self._api)
+        url = self._build_url(
+            "repos",
+            self.repository.owner,
+            self.repository.name,
+            "actions",
+            "runs",
+            self.id,
+            "jobs"
+        )
 
         return self._iter(
             int(count),
             url,
             Job,
-            params={"filter": "all" if all else "latest"}
+            params={"filter": "all" if all else "latest"},
             list_key="jobs",
         )
 
@@ -169,48 +198,23 @@ class Step(NamedTuple):
     started_at: datetime
     completed_at: datetime
 
+    @staticmethod
+    def from_json(json: dict):
+        started_at = models.GitHubCore._strptime(json.pop("started_at"))
+        completed_at = models.GitHubCore._strptime(json.pop("completed_at"))
+
+        return Step(started_at=started_at, completed_at=completed_at, **json)
+
 class Job(models.GitHubCore):
+
+    def _repr(self):
+        return f"<Job [{self}]>"
+
+    def __str__(self):
+        return str(self.id)
+
     def workflow_run(self):
         return self.repository.workflow_run(self.run_id)
-
-
-    def _update_attributes(self, job):
-        from github3.repos.repo import ShortRepository
-        from github3.users import ShortUser
-
-        attributes = [
-                "id",
-                "node_id",
-                "run_id",
-                "run_url",
-                "head_sha",
-                "workflow_name",
-                "head_branch",
-                "name",
-                "url",
-                "html_url",
-                "status",
-                "conclusion",
-                ("started_at", self._strptime),
-                ("completed_at", self._strptime),
-                "check_run_url",
-                "labels",
-                "runner_id",
-                "runner_name",
-                "runner_group_id",
-                "runner_group_name",
-                ("created_at", self._strptime),
-                ("steps", lambda s: [Step(**k) for k in s])
-        ]
-
-        for attribute in attributes:
-            if type(attribute) is tuple:
-                json_key, attribute_name, converter = attribute
-            else:
-                json_key = attribute_name = attribute
-                converter = lambda x: x
-            setattr(self, attribute_name, converter(job[json_key]))
-
 
 class Usage(models.GitHubCore):
     

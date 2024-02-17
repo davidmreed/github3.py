@@ -2900,12 +2900,13 @@ class _Repository(models.GitHubCore):
             actor=None,
             branch=None,
             event=None,
-            status=None,
+            status: str=None,
             created=None,
             exclude_pull_requests=False,
             check_suite_id=None,
             head_sha=None,
             workflow_id=None,
+            per_page=None,
         ):
         """Iterate over the workflow runs in this repository.
 
@@ -2936,7 +2937,8 @@ class _Repository(models.GitHubCore):
             "created": created,
             "exclude_pull_requests": exclude_pull_requests,
             "check_suite_id": check_suite_id,
-            "head_sha": head_sha
+            "head_sha": head_sha,
+            "per_page": per_page
         }
         return self._iter(
             int(count),
@@ -2946,7 +2948,7 @@ class _Repository(models.GitHubCore):
             list_key="workflow_runs",
         )
 
-    def workflow_run(self, id):
+    def workflow_run(self, id: int):
         """Get the branch ``name`` of this repository.
 
         :param str id:
